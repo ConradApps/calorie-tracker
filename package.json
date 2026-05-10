@@ -1,0 +1,13 @@
+{
+  "name": "calorie-tracker",
+  "version": "1.0.0",
+  "description": "Daily calorie tracking app",
+  "scripts": {
+    "build": "echo 'Static app, no build step needed'"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0"
+  }
+}

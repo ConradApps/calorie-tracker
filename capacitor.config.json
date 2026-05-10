@@ -1,0 +1,8 @@
+{
+  "appId": "com.calories.app",
+  "appName": "Calorie Tracker",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
