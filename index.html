@@ -150,7 +150,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display'
 .food-icon{width:40px;height:40px;border-radius:12px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
 .food-info{flex:1;min-width:0;}
 .food-name{font-size:16px;font-weight:700;color:var(--text);}
-.food-ingr{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
+.food-notes{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45;white-space:pre-wrap;word-break:break-word;}
 .food-kcal-badge{font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap;}
 .food-actions{display:flex;border-top:1px solid var(--border);}
 .food-action-btn{flex:1;background:none;border:none;padding:11px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:background 0.12s,color 0.12s;}
@@ -173,18 +173,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display'
 .btn-save{background:var(--accent);border:none;border-radius:12px;padding:13px;font-family:inherit;font-size:15px;font-weight:700;color:#fff;cursor:pointer;transition:all 0.15s;}
 .btn-save:active{opacity:0.75;}
 
-/* INGREDIENTS EDITOR */
-.ingr-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
-.ingr-row{display:flex;gap:8px;align-items:center;}
-.ingr-row input{font-family:inherit;font-size:14px;font-weight:500;padding:10px 12px;border-radius:10px;border:none;background:var(--surface2);color:var(--text);outline:none;transition:background 0.15s;}
-.ingr-row input:focus{background:var(--accent-bg);}
-.ingr-name{flex:1;}
-.ingr-kcal{width:80px;text-align:center;}
-.ingr-del{background:none;border:none;color:var(--hint);font-size:18px;cursor:pointer;padding:4px 6px;line-height:1;flex-shrink:0;}
-.ingr-del:active{color:var(--red);}
-.ingr-add-btn{background:none;border:1.5px dashed var(--border-strong);border-radius:10px;padding:10px;font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;width:100%;transition:all 0.15s;}
-.ingr-add-btn:active{background:var(--surface2);}
-.ingr-total{font-size:13px;font-weight:700;color:var(--muted);text-align:right;padding:4px 2px;}
+/* NOTES + KCAL BUBBLE LAYOUT */
+.notes-kcal-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;}
+.notes-side{flex:1;display:flex;flex-direction:column;gap:6px;}
+.notes-side label{font-size:12px;font-weight:600;color:var(--muted);}
+.notes-side textarea{font-family:inherit;font-size:15px;font-weight:500;padding:12px 14px;border-radius:12px;border:none;background:var(--surface2);color:var(--text);outline:none;resize:none;line-height:1.5;transition:background 0.15s;width:100%;min-height:110px;}
+.notes-side textarea:focus{background:var(--accent-bg);}
+.kcal-bubble-side{display:flex;flex-direction:column;gap:6px;align-items:center;}
+.kcal-bubble-side label{font-size:12px;font-weight:600;color:var(--muted);}
+.kcal-bubble{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:20px;width:90px;padding:16px 10px;gap:4px;}
+.kcal-bubble input{font-family:inherit;font-size:22px;font-weight:800;letter-spacing:-0.03em;color:#fff;background:transparent;border:none;outline:none;width:100%;text-align:center;appearance:none;-webkit-appearance:none;}
+.kcal-bubble input::placeholder{color:rgba(255,255,255,0.4);}
+.kcal-bubble span{font-size:11px;font-weight:600;color:rgba(255,255,255,0.65);text-transform:uppercase;letter-spacing:0.06em;}
 
 /* CONFIRM */
 .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;display:none;align-items:flex-end;justify-content:center;}
@@ -234,11 +234,18 @@ body::before{content:'';display:block;position:fixed;top:0;left:0;right:0;height
       <label>Food name</label>
       <input type="text" id="sfName" placeholder="e.g. Morning Smoothie" autocomplete="off"/>
     </div>
-    <div class="field">
-      <label>Ingredients &amp; notes</label>
-      <div class="ingr-list" id="ingrList"></div>
-      <button class="ingr-add-btn" onclick="addIngredientRow()">+ Add ingredient</button>
-      <div class="ingr-total" id="ingrTotal"></div>
+    <div class="notes-kcal-row">
+      <div class="notes-side">
+        <label>Notes</label>
+        <textarea id="sfNotes" placeholder="e.g. oat milk, banana, protein powder..." rows="4"></textarea>
+      </div>
+      <div class="kcal-bubble-side">
+        <label>Calories</label>
+        <div class="kcal-bubble">
+          <input type="number" id="sfKcal" placeholder="0" min="0"/>
+          <span>kcal</span>
+        </div>
+      </div>
     </div>
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeFoodModal()">Cancel</button>
@@ -528,12 +535,11 @@ foodInput.addEventListener('input', function() {
   const matches = foods.filter(f => f.name.toLowerCase().includes(q)).slice(0,5);
   if (!matches.length) { acList.classList.remove('open'); return; }
   acList.innerHTML = matches.map(f => {
-    const ingr = f.ingredients.map(i=>i.name).join(', ');
     return `<div class="ac-item" onclick="selectFood('${f.id}')">
       <div class="ac-icon">🍽️</div>
       <div class="ac-info">
         <div class="ac-name">${escHtml(f.name)}</div>
-        ${ingr ? `<div class="ac-note">${escHtml(ingr)}</div>` : ''}
+        ${f.notes ? `<div class="ac-note">${escHtml(f.notes)}</div>` : ''}
       </div>
       <div class="ac-kcal">${f.kcal} kcal</div>
     </div>`;
@@ -703,15 +709,12 @@ function renderFoods() {
     return;
   }
   el.innerHTML = foods.map(f => {
-    const ingrHtml = f.ingredients.length
-      ? f.ingredients.map(i=>`• ${escHtml(i.name)}${i.kcal ? ' — '+i.kcal+' kcal' : ''}`).join('\n')
-      : '';
     return `<div class="food-card">
       <div class="food-card-main">
         <div class="food-icon">🍽️</div>
         <div class="food-info">
           <div class="food-name">${escHtml(f.name)}</div>
-          ${ingrHtml ? `<div class="food-ingr">${escHtml(ingrHtml)}</div>` : ''}
+          ${f.notes ? `<div class="food-notes">${escHtml(f.notes)}</div>` : ''}
         </div>
         <div class="food-kcal-badge">${f.kcal} kcal</div>
       </div>
@@ -724,15 +727,13 @@ function renderFoods() {
 }
 
 // ---- FOOD MODAL ----
-let ingrRows = []; // [{name, kcal}]
-
 window.openFoodModal = function(id) {
   editingFoodId = id || null;
   const existing = id ? foods.find(f=>f.id===id) : null;
   document.getElementById('foodModalTitle').textContent = existing ? 'Edit Food' : 'New Saved Food';
-  document.getElementById('sfName').value = existing ? existing.name : '';
-  ingrRows = existing ? existing.ingredients.map(i=>({...i})) : [{name:'',kcal:''}];
-  renderIngrRows();
+  document.getElementById('sfName').value  = existing ? existing.name  : '';
+  document.getElementById('sfNotes').value = existing ? (existing.notes || '') : '';
+  document.getElementById('sfKcal').value  = existing ? existing.kcal  : '';
   document.getElementById('foodModal').classList.add('open');
   setTimeout(()=>document.getElementById('sfName').focus(), 350);
 };
@@ -741,58 +742,18 @@ window.closeFoodModal = function() {
   document.getElementById('foodModal').classList.remove('open');
 };
 
-window.addIngredientRow = function() {
-  ingrRows.push({name:'',kcal:''});
-  renderIngrRows();
-  // focus the new name field
-  setTimeout(()=>{
-    const inputs = document.querySelectorAll('.ingr-row .ingr-name');
-    if(inputs.length) inputs[inputs.length-1].focus();
-  }, 50);
-};
-
-window.removeIngrRow = function(i) {
-  ingrRows.splice(i,1);
-  if(!ingrRows.length) ingrRows.push({name:'',kcal:''});
-  renderIngrRows();
-};
-
-window.ingrChanged = function(i, field, val) {
-  ingrRows[i][field] = field==='kcal' ? (val===''?'':parseInt(val)||0) : val;
-  updateIngrTotal();
-};
-
-function renderIngrRows() {
-  document.getElementById('ingrList').innerHTML = ingrRows.map((r,i)=>`
-    <div class="ingr-row">
-      <input class="ingr-name" type="text" placeholder="Ingredient (e.g. Banana)"
-        value="${escHtml(r.name)}" oninput="ingrChanged(${i},'name',this.value)"/>
-      <input class="ingr-kcal" type="number" placeholder="kcal" min="0"
-        value="${r.kcal===''?'':r.kcal}" oninput="ingrChanged(${i},'kcal',this.value)"/>
-      <button class="ingr-del" onclick="removeIngrRow(${i})" title="Remove">✕</button>
-    </div>`).join('');
-  updateIngrTotal();
-}
-
-function updateIngrTotal() {
-  const total = ingrRows.reduce((s,r)=>s+(parseInt(r.kcal)||0),0);
-  document.getElementById('ingrTotal').textContent = total ? 'Total: '+total+' kcal' : '';
-}
-
 window.saveFoodItem = function() {
-  const name = document.getElementById('sfName').value.trim();
+  const name  = document.getElementById('sfName').value.trim();
+  const notes = document.getElementById('sfNotes').value.trim();
+  const kcal  = parseInt(document.getElementById('sfKcal').value) || 0;
   if (!name) { showToast('Enter a food name.'); document.getElementById('sfName').focus(); return; }
-  const ingredients = ingrRows
-    .filter(r=>r.name.trim())
-    .map(r=>({name:r.name.trim(), kcal:parseInt(r.kcal)||0}));
-  const kcal = ingredients.reduce((s,r)=>s+r.kcal,0);
-  if (!kcal) { showToast('Add at least one ingredient with calories.'); return; }
+  if (!kcal) { showToast('Enter the calories.'); document.getElementById('sfKcal').focus(); return; }
 
   if (editingFoodId) {
     const idx = foods.findIndex(f=>f.id===editingFoodId);
-    if (idx>=0) foods[idx] = {id:editingFoodId, name, ingredients, kcal};
+    if (idx>=0) foods[idx] = {id:editingFoodId, name, notes, kcal};
   } else {
-    foods.push({id:Date.now().toString(), name, ingredients, kcal});
+    foods.push({id:Date.now().toString(), name, notes, kcal});
   }
   saveFoods();
   closeFoodModal();
