@@ -61,9 +61,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display'
 .ring-wrap{position:relative;width:88px;height:88px;flex-shrink:0;}
 .ring-wrap svg{width:88px;height:88px;transform:rotate(-90deg);}
 .ring-bg{fill:none;stroke:var(--surface3);stroke-width:8;}
-.ring-fill{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 0.6s var(--ease);}
-.ring-fill.over{stroke:var(--red);}
-.ring-fill.target{stroke:var(--amber);}
+.ring-fill{fill:none;stroke:var(--green);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 0.6s var(--ease),stroke 0.4s var(--ease);}
+.ring-fill.amber{stroke:var(--amber);}
+.ring-fill.red{stroke:var(--red);}
 .ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--muted);}
 .ring-stats{flex:1;}
 .ring-kcal{font-size:38px;font-weight:800;letter-spacing:-0.03em;color:var(--text);line-height:1;}
@@ -176,7 +176,7 @@ body::before{content:'';display:block;position:fixed;top:0;left:0;right:0;height
     <div class="confirm-title" id="confirmTitle"></div>
     <div class="confirm-msg" id="confirmMsg"></div>
     <div class="confirm-btns">
-      <button class="confirm-btn-ok" id="confirmOkBtn"></button>
+      <button class="confirm-btn-ok" id="confirmOkBtn" onclick="confirmResolve(true)"></button>
       <button class="confirm-btn-cancel" onclick="confirmResolve(false)">Cancel</button>
     </div>
   </div>
@@ -197,7 +197,7 @@ body::before{content:'';display:block;position:fixed;top:0;left:0;right:0;height
           <svg viewBox="0 0 88 88">
             <circle class="ring-bg" cx="44" cy="44" r="36"/>
             <circle class="ring-fill" id="ringFill" cx="44" cy="44" r="36"
-              stroke-dasharray="226.2" stroke-dashoffset="226.2"/>
+              stroke-dasharray="226.195" stroke-dashoffset="226.195"/>
           </svg>
           <div class="ring-pct" id="ringPct">0%</div>
         </div>
@@ -248,11 +248,7 @@ body::before{content:'';display:block;position:fixed;top:0;left:0;right:0;height
           </div>
           <div class="cal-days" id="calDays"></div>
         </div>
-        <div class="cal-legend">
-          <div class="cal-legend-item"><div class="cal-dot" style="background:rgba(52,199,89,0.5);"></div>Under goal</div>
-          <div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,159,10,0.5);"></div>On target</div>
-          <div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,59,48,0.5);"></div>Over +100</div>
-        </div>
+        <div class="cal-legend" id="calLegend"></div>
       </div>
     </div>
   </div>
@@ -450,16 +446,20 @@ function renderToday() {
   const pct = Math.min(total/goal, 1);
   const circ = 2*Math.PI*36;
 
-  // Ring
+  // Ring: loss=green under, amber on-target, red over; gain=red under, amber on-target, green over
   const fill = document.getElementById('ringFill');
   fill.style.strokeDashoffset = circ*(1-pct);
-  fill.className = 'ring-fill';
+  fill.setAttribute('class', 'ring-fill'); // default = green (use setAttribute for SVG elements)
+  const diff = total - goal;
   if (mode==='loss') {
-    if (total > goal+100) fill.classList.add('over');
-    else if (Math.abs(total-goal) <= 100) fill.classList.add('target');
+    if (diff > 100)                               fill.classList.add('red');
+    else if (Math.abs(diff) <= 100 && total > 0)  fill.classList.add('amber');
+    // under by >100 = green (default)
   } else {
-    if (total >= goal+100) fill.classList.add('target');
-    else if (total < goal-100) fill.classList.add('over');
+    // gain mode
+    if (total < goal-100)                         fill.classList.add('red');
+    else if (Math.abs(diff) <= 100 && total > 0)  fill.classList.add('amber');
+    // over by >100 = green (default)
   }
 
   document.getElementById('ringPct').textContent = Math.round(pct*100)+'%';
@@ -527,6 +527,18 @@ function renderCalendar() {
   const yr = calViewDate.getFullYear();
   const mo = calViewDate.getMonth();
   document.getElementById('calMonth').textContent = calViewDate.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+  const legendEl = document.getElementById('calLegend');
+  if (legendEl) {
+    if (mode === 'loss') {
+      legendEl.innerHTML = '<div class="cal-legend-item"><div class="cal-dot" style="background:rgba(52,199,89,0.5);"></div>Under goal</div>' +
+        '<div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,159,10,0.5);"></div>On target (±100)</div>' +
+        '<div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,59,48,0.5);"></div>Over +100</div>';
+    } else {
+      legendEl.innerHTML = '<div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,59,48,0.5);"></div>Under −100</div>' +
+        '<div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,159,10,0.5);"></div>On target (±100)</div>' +
+        '<div class="cal-legend-item"><div class="cal-dot" style="background:rgba(52,199,89,0.5);"></div>Over +100</div>';
+    }
+  }
 
   const firstDay = new Date(yr, mo, 1).getDay();
   const daysInMonth = new Date(yr, mo+1, 0).getDate();
@@ -598,6 +610,8 @@ window.setMode = function(m) {
   mode = m;
   localStorage.setItem(MODE_KEY, mode);
   renderSettings();
+  renderToday();
+  renderCalendar();
   showToast(m==='loss' ? 'Weight loss mode set.' : 'Weight gain mode set.');
 };
 
