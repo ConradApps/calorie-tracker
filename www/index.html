@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover"/>
+<meta name="screen-orientation" content="portrait"/>
+<title>Calorie Tracker</title>
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#f2f2f7"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Calories"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#f0f4f8;--surface:#ffffff;--surface2:#f0f4f8;--surface3:#e4e9ef;
+  --border:rgba(60,60,67,0.12);--border-strong:rgba(60,60,67,0.22);
+  --text:#1c1c1e;--muted:#6e6e73;--hint:#aeaeb2;
+  --accent:#1a1a2e;--accent-bg:#eef0f8;
+  --green:#34c759;--green-bg:#e8f8ec;
+  --red:#ff3b30;--red-bg:#ffecec;
+  --amber:#ff9f0a;--amber-bg:#fff5e1;
+  --blue:#007aff;
+  --radius:18px;--radius-sm:12px;--radius-lg:22px;
+  --shadow-card:0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06);
+  --shadow-elev:0 8px 24px rgba(16,24,40,0.10);
+  --ease:cubic-bezier(0.32,0.72,0,1);
+}
+html,body{height:100%;}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100%;overflow-x:hidden;width:100%;-webkit-font-smoothing:antialiased;letter-spacing:-0.01em;}
+
+/* SWIPE PAGER */
+.pager{position:fixed;inset:0;display:flex;width:300%;will-change:transform;transition:transform 380ms var(--ease);}
+.pager.dragging{transition:none;}
+.pager-page{width:33.3333%;height:100svh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-bottom:calc(78px + env(safe-area-inset-bottom));}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,0.82);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border-top:1px solid var(--border);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:inherit;font-size:11px;font-weight:600;letter-spacing:0;transition:color 0.2s var(--ease),transform 0.15s var(--ease);height:64px;padding-top:6px;}
+.nav-btn:active{transform:scale(0.94);}
+.nav-btn.active{color:var(--accent);}
+.nav-icon{font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;}
+
+/* HEADERS */
+.page-header{padding:calc(env(safe-area-inset-top, 35px) + 1rem) 1.25rem 0.25rem;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;}
+.page-header h1{font-size:34px;font-weight:800;letter-spacing:-0.02em;color:var(--text);line-height:1.05;}
+.page-header p{font-size:13px;color:var(--muted);margin-top:4px;font-weight:500;}
+
+/* BODY */
+.page-body{flex:1;padding:1rem 1rem 0;max-width:560px;margin:0 auto;width:100%;}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:var(--radius);padding:1rem 1.125rem;margin-bottom:1rem;box-shadow:var(--shadow-card);}
+.card-title{font-size:13px;font-weight:700;letter-spacing:-0.01em;color:var(--muted);margin-bottom:0.625rem;}
+
+/* RING CARD */
+.ring-card{background:var(--surface);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:1.5rem;}
+.ring-wrap{position:relative;width:88px;height:88px;flex-shrink:0;}
+.ring-wrap svg{width:88px;height:88px;transform:rotate(-90deg);}
+.ring-bg{fill:none;stroke:var(--surface3);stroke-width:8;}
+.ring-fill{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 0.6s var(--ease);}
+.ring-fill.over{stroke:var(--red);}
+.ring-fill.target{stroke:var(--amber);}
+.ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--muted);}
+.ring-stats{flex:1;}
+.ring-kcal{font-size:38px;font-weight:800;letter-spacing:-0.03em;color:var(--text);line-height:1;}
+.ring-of{font-size:13px;color:var(--muted);font-weight:500;margin-top:4px;}
+.ring-remaining{font-size:15px;font-weight:700;margin-top:8px;}
+.ring-remaining span{color:var(--muted);font-weight:500;}
+
+/* ADD CARD */
+.add-meal-card{background:var(--surface);border-radius:var(--radius);padding:1rem 1.125rem;margin-bottom:1rem;box-shadow:var(--shadow-card);}
+.add-row{display:flex;gap:8px;align-items:center;}
+.add-input{font-family:inherit;font-size:15px;font-weight:500;padding:12px 14px;border-radius:12px;border:none;background:var(--surface2);color:var(--text);outline:none;transition:background 0.15s;}
+.add-input:focus{background:var(--accent-bg);}
+.add-input-food{flex:1;}
+.add-input-kcal{width:90px;text-align:center;}
+.add-btn{background:var(--accent);border:none;border-radius:12px;padding:12px 18px;font-family:inherit;font-size:15px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap;transition:all 0.15s var(--ease);display:flex;align-items:center;gap:6px;}
+.add-btn:active{opacity:0.75;transform:scale(0.97);}
+
+/* ENTRIES */
+.entries-section{}
+.entries-label{font-size:13px;font-weight:700;color:var(--muted);padding:0 4px;margin-bottom:0.5rem;}
+.entries-list{display:flex;flex-direction:column;gap:0;}
+.entry-empty{background:var(--surface);border-radius:var(--radius);border:1.5px dashed var(--border-strong);padding:2rem 1rem;text-align:center;color:var(--muted);font-size:15px;line-height:1.6;}
+
+.entry-item{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 1.125rem;display:flex;align-items:center;gap:12px;transition:background 0.12s;}
+.entry-item:first-child{border-radius:var(--radius) var(--radius) 0 0;}
+.entry-item:last-child{border-radius:0 0 var(--radius) var(--radius);border-bottom:none;}
+.entry-item:only-child{border-radius:var(--radius);border-bottom:none;}
+.entry-item:active{background:var(--surface2);}
+.entry-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.entry-info{flex:1;min-width:0;}
+.entry-name{font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.entry-time{font-size:12px;color:var(--hint);margin-top:2px;font-weight:500;}
+.entry-kcal{font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;}
+.entry-del{background:none;border:none;color:var(--hint);cursor:pointer;font-size:18px;padding:4px 6px;line-height:1;transition:color 0.15s;}
+.entry-del:active{color:var(--red);}
+
+/* CALENDAR */
+.cal-wrap{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:1rem;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;}
+.cal-month{font-size:17px;font-weight:700;color:var(--text);}
+.cal-nav-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:6px 10px;line-height:1;transition:color 0.15s var(--ease),transform 0.15s var(--ease);}
+.cal-nav-btn:active{transform:scale(0.85);color:var(--text);}
+.cal-grid{padding:0 0.75rem 1rem;}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;padding-bottom:4px;}
+.cal-day-lbl{font-size:12px;font-weight:600;color:var(--muted);padding:6px 0;}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:12px;font-size:15px;font-weight:500;color:var(--text);background:var(--surface2);cursor:pointer;transition:all 0.15s var(--ease);position:relative;}
+.cal-day:active{transform:scale(0.9);}
+.cal-day.empty{background:none;pointer-events:none;color:transparent;}
+.cal-day.today{box-shadow:0 0 0 2px var(--accent);}
+.cal-day.under{background:rgba(52,199,89,0.18);}
+.cal-day.ontarget{background:rgba(255,159,10,0.22);}
+.cal-day.over{background:rgba(255,59,48,0.18);}
+.cal-legend{display:flex;gap:14px;padding:0.75rem 1.25rem;border-top:1px solid var(--border);flex-wrap:wrap;}
+.cal-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);}
+.cal-dot{width:12px;height:12px;border-radius:4px;}
+
+/* SETTINGS */
+.settings-card{background:var(--surface);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow-card);}
+.settings-card h2{font-size:16px;font-weight:700;color:var(--text);margin-bottom:1rem;}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.field label{font-size:12px;font-weight:600;color:var(--muted);}
+.field input{font-family:inherit;font-size:16px;font-weight:500;padding:13px 14px;border-radius:12px;border:none;background:var(--surface2);color:var(--text);width:100%;appearance:none;-webkit-appearance:none;outline:none;transition:background 0.15s;}
+.field input:focus{background:var(--accent-bg);}
+.save-btn{background:var(--accent);border:none;border-radius:12px;padding:13px 24px;font-family:inherit;font-size:15px;font-weight:700;color:#fff;cursor:pointer;transition:all 0.15s var(--ease);}
+.save-btn:active{opacity:0.75;transform:scale(0.97);}
+
+/* GOAL MODE */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:0.5rem;}
+.mode-card{border:2px solid var(--border);border-radius:var(--radius-sm);padding:1rem;cursor:pointer;transition:all 0.15s var(--ease);background:var(--surface);}
+.mode-card:active{transform:scale(0.97);}
+.mode-card.active{border-color:var(--accent);background:var(--accent-bg);}
+.mode-card-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.mode-card-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+
+/* CONFIRM DIALOG */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;display:none;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s var(--ease);}
+.confirm-overlay.open{display:flex;}
+.confirm-sheet{background:var(--surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:1.25rem 1.25rem calc(env(safe-area-inset-bottom,0px) + 1.25rem);width:100%;max-width:560px;animation:slideUp 0.28s var(--ease);position:relative;}
+.confirm-sheet::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:36px;height:5px;border-radius:3px;background:var(--border-strong);}
+.confirm-title{font-size:17px;font-weight:700;letter-spacing:-0.015em;color:var(--text);text-align:center;margin:0.5rem 0 0.5rem;}
+.confirm-msg{font-size:14px;color:var(--muted);text-align:center;line-height:1.5;margin-bottom:1.25rem;}
+.confirm-btns{display:flex;flex-direction:column;gap:10px;}
+.confirm-btn-ok{background:var(--red);color:#fff;border:none;border-radius:14px;padding:15px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;width:100%;transition:opacity 0.15s;}
+.confirm-btn-ok:active{opacity:0.75;}
+.confirm-btn-cancel{background:var(--surface2);color:var(--text);border:none;border-radius:14px;padding:15px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;width:100%;transition:all 0.15s;}
+.confirm-btn-cancel:active{background:var(--surface3);}
+
+/* TOAST */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(28,28,30,0.92);backdrop-filter:blur(20px);color:#fff;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;transition:opacity 0.25s var(--ease),transform 0.25s var(--ease);pointer-events:none;z-index:400;white-space:nowrap;box-shadow:var(--shadow-elev);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+
+html{scrollbar-width:none;-ms-overflow-style:none;}
+html::-webkit-scrollbar,body::-webkit-scrollbar,*::-webkit-scrollbar{width:0!important;height:0!important;display:none!important;}
+
+body::after{content:'';display:block;position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:var(--bg);z-index:49;}
+body::before{content:'';display:block;position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,44px);background:var(--bg);z-index:999;pointer-events:none;}
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- CONFIRM OVERLAY -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title" id="confirmTitle"></div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-btn-ok" id="confirmOkBtn"></button>
+      <button class="confirm-btn-cancel" onclick="confirmResolve(false)">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGER -->
+<div class="pager" id="pager">
+
+  <!-- PAGE 0: TODAY -->
+  <div class="pager-page" data-page="today">
+    <div class="page-header">
+      <div><h1>Today</h1><p id="todayDateStr"></p></div>
+    </div>
+    <div class="page-body">
+      <!-- Ring + stats -->
+      <div class="ring-card" id="ringCard">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 88 88">
+            <circle class="ring-bg" cx="44" cy="44" r="36"/>
+            <circle class="ring-fill" id="ringFill" cx="44" cy="44" r="36"
+              stroke-dasharray="226.2" stroke-dashoffset="226.2"/>
+          </svg>
+          <div class="ring-pct" id="ringPct">0%</div>
+        </div>
+        <div class="ring-stats">
+          <div class="ring-kcal" id="ringKcal">0</div>
+          <div class="ring-of" id="ringOf">of 2000 kcal</div>
+          <div class="ring-remaining" id="ringRemaining"><strong id="ringRemVal">2000</strong> <span>remaining</span></div>
+        </div>
+      </div>
+
+      <!-- Add entry -->
+      <div class="add-meal-card">
+        <div class="add-row">
+          <input class="add-input add-input-food" type="text" id="foodInput" placeholder="What did you eat?" autocomplete="off"/>
+          <input class="add-input add-input-kcal" type="number" id="kcalInput" placeholder="kcal" min="0"/>
+          <button class="add-btn" onclick="addEntry()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            Add
+          </button>
+        </div>
+      </div>
+
+      <!-- Entries -->
+      <div class="entries-section">
+        <div class="entries-label">Entries</div>
+        <div id="entriesList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 1: CALENDAR -->
+  <div class="pager-page" data-page="calendar">
+    <div class="page-header">
+      <div><h1>Calendar</h1><p>Daily intake at a glance</p></div>
+    </div>
+    <div class="page-body">
+      <div class="cal-wrap">
+        <div class="cal-header">
+          <button class="cal-nav-btn" onclick="calPrev()">&#8249;</button>
+          <div class="cal-month" id="calMonth"></div>
+          <button class="cal-nav-btn" onclick="calNext()">&#8250;</button>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-days-header">
+            <div class="cal-day-lbl">S</div><div class="cal-day-lbl">M</div><div class="cal-day-lbl">T</div>
+            <div class="cal-day-lbl">W</div><div class="cal-day-lbl">T</div><div class="cal-day-lbl">F</div>
+            <div class="cal-day-lbl">S</div>
+          </div>
+          <div class="cal-days" id="calDays"></div>
+        </div>
+        <div class="cal-legend">
+          <div class="cal-legend-item"><div class="cal-dot" style="background:rgba(52,199,89,0.5);"></div>Under goal</div>
+          <div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,159,10,0.5);"></div>On target</div>
+          <div class="cal-legend-item"><div class="cal-dot" style="background:rgba(255,59,48,0.5);"></div>Over +100</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: SETTINGS -->
+  <div class="pager-page" data-page="settings">
+    <div class="page-header">
+      <div><h1>Settings</h1><p>Customize your daily target</p></div>
+    </div>
+    <div class="page-body">
+      <div class="settings-card">
+        <h2>Daily calorie goal</h2>
+        <div class="field">
+          <input type="number" id="goalInput" placeholder="2000" min="500" max="9999"/>
+        </div>
+        <button class="save-btn" onclick="saveGoal()">Save</button>
+      </div>
+
+      <div class="settings-card">
+        <h2>Goal mode</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:0.75rem;">Choose how the colors are calculated.</p>
+        <div class="mode-grid">
+          <div class="mode-card" id="modeLoss" onclick="setMode('loss')">
+            <div class="mode-card-title">Weight loss</div>
+            <div class="mode-card-desc">Green when under goal. Red when over by more than 100 kcal.</div>
+          </div>
+          <div class="mode-card" id="modeGain" onclick="setMode('gain')">
+            <div class="mode-card-title">Weight gain</div>
+            <div class="mode-card-desc">Green when over goal by 100+ kcal. Red when under by more than 100 kcal.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <h2>Data</h2>
+        <button onclick="clearToday()" style="background:none;border:none;color:var(--red);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;padding:0;">Clear today's entries</button>
+        <br/><br/>
+        <button onclick="clearAllData()" style="background:none;border:none;color:var(--hint);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;padding:0;">Clear all history</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-btn active" data-page="today" onclick="navigateTo('today')">
+    <span class="nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.05A10 10 0 1 1 2.05 13"/><path d="M13 2v9h9"/></svg>
+    </span>
+    Today
+  </button>
+  <button class="nav-btn" data-page="calendar" onclick="navigateTo('calendar')">
+    <span class="nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </span>
+    Calendar
+  </button>
+  <button class="nav-btn" data-page="settings" onclick="navigateTo('settings')">
+    <span class="nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </span>
+    Settings
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- STORAGE KEYS ----
+const GOAL_KEY = 'calorie_goal';
+const MODE_KEY = 'calorie_mode';
+const LOG_KEY  = 'calorie_log'; // { "YYYY-MM-DD": [{id, name, kcal, time}] }
+
+// ---- STATE ----
+let goal = parseInt(localStorage.getItem(GOAL_KEY)) || 2000;
+let mode = localStorage.getItem(MODE_KEY) || 'loss';
+let log  = {};
+try { log = JSON.parse(localStorage.getItem(LOG_KEY)) || {}; } catch(e) {}
+let calViewDate = new Date();
+
+// ---- HELPERS ----
+function todayKey() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function saveLog() { localStorage.setItem(LOG_KEY, JSON.stringify(log)); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-AU', {hour:'numeric',minute:'2-digit',hour12:true});
+}
+
+// ---- CONFIRM ----
+let _confirmResolve = null;
+window.confirmResolve = function(val) {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  if (_confirmResolve) { _confirmResolve(val); _confirmResolve = null; }
+};
+function showConfirm(title, msg, label) {
+  return new Promise(resolve => {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmOkBtn').textContent = label || 'Confirm';
+    _confirmResolve = resolve;
+    document.getElementById('confirmOverlay').classList.add('open');
+  });
+}
+
+// ---- NAV / PAGER ----
+const PAGES = ['today','calendar','settings'];
+let pageIdx = 0;
+
+function setPager(idx, animate=true) {
+  pageIdx = Math.max(0, Math.min(2, idx));
+  const pager = document.getElementById('pager');
+  pager.classList.toggle('dragging', !animate);
+  pager.style.transform = `translate3d(${-pageIdx * 33.3333}%,0,0)`;
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.page === PAGES[pageIdx])
+  );
+  if (PAGES[pageIdx] === 'today')    renderToday();
+  if (PAGES[pageIdx] === 'calendar') renderCalendar();
+  if (PAGES[pageIdx] === 'settings') renderSettings();
+}
+
+window.navigateTo = function(page) {
+  const idx = PAGES.indexOf(page);
+  if (idx >= 0) setPager(idx, true);
+};
+
+// ---- SWIPE ----
+(function(){
+  const pager = document.getElementById('pager');
+  let startX=0, startY=0, dx=0, active=false, decided=false, isHoriz=false, w=window.innerWidth;
+  function onStart(e){
+    if(e.touches && e.touches.length > 1) return;
+    const t = e.touches ? e.touches[0] : e;
+    startX=t.clientX; startY=t.clientY; dx=0;
+    active=true; decided=false; isHoriz=false; w=window.innerWidth;
+  }
+  function onMove(e){
+    if(!active) return;
+    if(e.touches && e.touches.length > 1){ active=false; return; }
+    const t = e.touches ? e.touches[0] : e;
+    const ddx=t.clientX-startX, ddy=t.clientY-startY;
+    if(!decided){
+      if(Math.abs(ddx)<8 && Math.abs(ddy)<8) return;
+      decided=true;
+      isHoriz = Math.abs(ddx) >= Math.abs(ddy)*2;
+      if(isHoriz){ pager.classList.add('dragging'); } else { active=false; return; }
+    }
+    if(!isHoriz) return;
+    let resist = ddx;
+    if((pageIdx===0 && ddx>0)||(pageIdx===2 && ddx<0)) resist=ddx*0.25;
+    dx=resist;
+    const pct = -pageIdx*33.3333+(resist/w)*33.3333;
+    pager.style.transform=`translate3d(${pct}%,0,0)`;
+    if(e.cancelable) e.preventDefault();
+  }
+  function onEnd(){
+    if(!active) return;
+    active=false; pager.classList.remove('dragging');
+    if(!isHoriz) return;
+    const threshold=w*0.20;
+    let next=pageIdx;
+    if(dx<-threshold && pageIdx<2) next=pageIdx+1;
+    else if(dx>threshold && pageIdx>0) next=pageIdx-1;
+    setPager(next, true);
+  }
+  document.addEventListener('touchstart', onStart, {passive:true});
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('touchend', onEnd, {passive:true});
+  document.addEventListener('touchcancel', onEnd, {passive:true});
+  window.addEventListener('resize', () => { w=window.innerWidth; setPager(pageIdx, false); requestAnimationFrame(()=>pager.classList.remove('dragging')); });
+  requestAnimationFrame(() => setPager(0, false));
+  requestAnimationFrame(() => requestAnimationFrame(() => pager.classList.remove('dragging')));
+})();
+
+// ---- TODAY ----
+function getTodayEntries() { return log[todayKey()] || []; }
+function getTotalKcal(entries) { return entries.reduce((s,e)=>s+e.kcal,0); }
+
+function renderToday() {
+  // Date string
+  document.getElementById('todayDateStr').textContent =
+    new Date().toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'});
+
+  const entries = getTodayEntries();
+  const total = getTotalKcal(entries);
+  const pct = Math.min(total/goal, 1);
+  const circ = 2*Math.PI*36;
+
+  // Ring
+  const fill = document.getElementById('ringFill');
+  fill.style.strokeDashoffset = circ*(1-pct);
+  fill.className = 'ring-fill';
+  if (mode==='loss') {
+    if (total > goal+100) fill.classList.add('over');
+    else if (Math.abs(total-goal) <= 100) fill.classList.add('target');
+  } else {
+    if (total >= goal+100) fill.classList.add('target');
+    else if (total < goal-100) fill.classList.add('over');
+  }
+
+  document.getElementById('ringPct').textContent = Math.round(pct*100)+'%';
+  document.getElementById('ringKcal').textContent = total.toLocaleString();
+  document.getElementById('ringOf').textContent = 'of '+goal.toLocaleString()+' kcal';
+  const rem = goal - total;
+  document.getElementById('ringRemVal').textContent = Math.abs(rem).toLocaleString();
+  document.getElementById('ringRemaining').querySelector('span').textContent =
+    rem < 0 ? 'over goal' : 'remaining';
+
+  // Entries list
+  const list = document.getElementById('entriesList');
+  if (!entries.length) {
+    list.innerHTML = '<div class="entry-empty">No entries yet. Log your first meal above.</div>';
+    return;
+  }
+  list.innerHTML = '<div class="entries-list">'+
+    entries.slice().reverse().map(e=>`
+      <div class="entry-item">
+        <div class="entry-dot"></div>
+        <div class="entry-info">
+          <div class="entry-name">${escHtml(e.name)}</div>
+          <div class="entry-time">${fmtTime(e.time)}</div>
+        </div>
+        <div class="entry-kcal">${e.kcal.toLocaleString()} kcal</div>
+        <button class="entry-del" onclick="deleteEntry('${e.id}')">✕</button>
+      </div>`).join('')+
+    '</div>';
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+window.addEntry = function() {
+  const nameEl = document.getElementById('foodInput');
+  const kcalEl = document.getElementById('kcalInput');
+  const name = nameEl.value.trim();
+  const kcal = parseInt(kcalEl.value);
+  if (!name) { showToast('Enter a food name.'); nameEl.focus(); return; }
+  if (!kcal || kcal <= 0) { showToast('Enter calories.'); kcalEl.focus(); return; }
+
+  const key = todayKey();
+  if (!log[key]) log[key] = [];
+  log[key].push({ id: Date.now().toString(), name, kcal, time: Date.now() });
+  saveLog();
+  nameEl.value = '';
+  kcalEl.value = '';
+  nameEl.focus();
+  renderToday();
+};
+
+// Enter key support
+document.getElementById('kcalInput').addEventListener('keydown', e => { if(e.key==='Enter') window.addEntry(); });
+document.getElementById('foodInput').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('kcalInput').focus(); });
+
+window.deleteEntry = function(id) {
+  const key = todayKey();
+  if (!log[key]) return;
+  log[key] = log[key].filter(e => e.id !== id);
+  saveLog();
+  renderToday();
+};
+
+// ---- CALENDAR ----
+function renderCalendar() {
+  const yr = calViewDate.getFullYear();
+  const mo = calViewDate.getMonth();
+  document.getElementById('calMonth').textContent = calViewDate.toLocaleDateString('en-AU',{month:'long',year:'numeric'});
+
+  const firstDay = new Date(yr, mo, 1).getDay();
+  const daysInMonth = new Date(yr, mo+1, 0).getDate();
+  const today = new Date();
+
+  let html = '';
+  for (let i=0; i<firstDay; i++) html += '<div class="cal-day empty"></div>';
+
+  for (let d=1; d<=daysInMonth; d++) {
+    const key = yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const entries = log[key] || [];
+    const total = getTotalKcal(entries);
+    const isToday = today.getFullYear()===yr && today.getMonth()===mo && today.getDate()===d;
+    const hasDat = entries.length > 0;
+
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (hasDat) {
+      const diff = total - goal;
+      if (mode==='loss') {
+        if (diff > 100) cls += ' over';
+        else if (Math.abs(diff) <= 100) cls += ' ontarget';
+        else cls += ' under';
+      } else {
+        if (total >= goal+100) cls += ' under'; // green = hit surplus
+        else if (total < goal-100) cls += ' over';
+        else cls += ' ontarget';
+      }
+    }
+    const title = hasDat ? `${total} kcal logged` : '';
+    html += `<div class="${cls}" title="${title}" onclick="calDayTap('${key}',${d})">${d}</div>`;
+  }
+
+  document.getElementById('calDays').innerHTML = html;
+}
+
+window.calPrev = function() {
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth()-1, 1);
+  renderCalendar();
+};
+window.calNext = function() {
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth()+1, 1);
+  renderCalendar();
+};
+window.calDayTap = function(key, d) {
+  const entries = log[key] || [];
+  if (!entries.length) return;
+  const total = getTotalKcal(entries);
+  showToast(key.slice(5).replace('-','/')+': '+total.toLocaleString()+' kcal ('+entries.length+' items)');
+};
+
+// ---- SETTINGS ----
+function renderSettings() {
+  document.getElementById('goalInput').value = goal;
+  document.getElementById('modeLoss').classList.toggle('active', mode==='loss');
+  document.getElementById('modeGain').classList.toggle('active', mode==='gain');
+}
+
+window.saveGoal = function() {
+  const val = parseInt(document.getElementById('goalInput').value);
+  if (!val || val < 100) { showToast('Enter a valid calorie goal.'); return; }
+  goal = val;
+  localStorage.setItem(GOAL_KEY, goal);
+  showToast('Goal saved!');
+  renderSettings();
+};
+
+window.setMode = function(m) {
+  mode = m;
+  localStorage.setItem(MODE_KEY, mode);
+  renderSettings();
+  showToast(m==='loss' ? 'Weight loss mode set.' : 'Weight gain mode set.');
+};
+
+window.clearToday = async function() {
+  const ok = await showConfirm("Clear Today's Entries", "This will remove all of today's logged meals. Cannot be undone.", "Clear Today");
+  if (!ok) return;
+  delete log[todayKey()];
+  saveLog();
+  renderToday();
+  showToast("Today's entries cleared.");
+};
+
+window.clearAllData = async function() {
+  const ok = await showConfirm("Clear All History", "This will permanently delete all calorie history. Cannot be undone.", "Delete Everything");
+  if (!ok) return;
+  log = {};
+  saveLog();
+  renderToday();
+  renderCalendar();
+  showToast("All history cleared.");
+};
+
+// ---- INIT ----
+document.getElementById('todayDateStr').textContent =
+  new Date().toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'});
+renderToday();
+renderSettings();
+</script>
+</body>
+</html>
